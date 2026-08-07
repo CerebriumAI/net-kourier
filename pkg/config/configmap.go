@@ -54,6 +54,24 @@ const (
 	TracingCollectorFullEndpoint = "tracing-collector-full-endpoint"
 
 	disableEnvoyServerHeader = "disable-envoy-server-header"
+
+	// maxConnectionsKey is the config map key for the per-cluster Envoy
+	// "max_connections" circuit breaker threshold.
+	maxConnectionsKey = "max-connections"
+
+	// maxPendingRequestsKey is the config map key for the per-cluster Envoy
+	// "max_pending_requests" circuit breaker threshold.
+	maxPendingRequestsKey = "max-pending-requests"
+)
+
+// Envoy defaults these to 1024, applied per cluster rather than per endpoint, and
+// net-kourier leaves them unset. A single revision that goes not-ready under load parks
+// its requests on held connections, exhausts the shared budget, and Envoy then sheds
+// traffic for every revision behind that cluster with a 503 (UO). Adding replicas does
+// not help — the threshold spans all endpoints in the cluster.
+const (
+	DefaultMaxConnections     = uint32(5192)
+	DefaultMaxPendingRequests = uint32(5192)
 )
 
 func DefaultConfig() *Kourier {
@@ -67,6 +85,8 @@ func DefaultConfig() *Kourier {
 		EnableCryptoMB:             false,
 		UseRemoteAddress:           false,
 		DisableEnvoyServerHeader:   false,
+		MaxConnections:             DefaultMaxConnections,
+		MaxPendingRequests:         DefaultMaxPendingRequests,
 	}
 }
 
@@ -85,8 +105,19 @@ func NewConfigFromMap(configMap map[string]string) (*Kourier, error) {
 		cm.AsBool(enableCryptoMB, &nc.EnableCryptoMB),
 		asTracing(TracingCollectorFullEndpoint, &nc.Tracing),
 		cm.AsBool(disableEnvoyServerHeader, &nc.DisableEnvoyServerHeader),
+		cm.AsUint32(maxConnectionsKey, &nc.MaxConnections),
+		cm.AsUint32(maxPendingRequestsKey, &nc.MaxPendingRequests),
 	); err != nil {
 		return nil, err
+	}
+
+	// Zero disables the threshold entirely in Envoy, which is never what an operator
+	// setting these means; treat it as "unset" rather than "unlimited".
+	if nc.MaxConnections == 0 {
+		nc.MaxConnections = DefaultMaxConnections
+	}
+	if nc.MaxPendingRequests == 0 {
+		nc.MaxPendingRequests = DefaultMaxPendingRequests
 	}
 
 	return nc, nil
@@ -167,4 +198,10 @@ type Kourier struct {
 	Tracing Tracing
 	// Disable Server Header
 	DisableEnvoyServerHeader bool
+	// MaxConnections is the Envoy "max_connections" circuit breaker threshold applied to
+	// every generated cluster, across all of that cluster's endpoints.
+	MaxConnections uint32
+	// MaxPendingRequests is the Envoy "max_pending_requests" circuit breaker threshold
+	// applied to every generated cluster. Requests beyond it are shed with a 503.
+	MaxPendingRequests uint32
 }

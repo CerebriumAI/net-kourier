@@ -21,6 +21,7 @@ import (
 	"time"
 
 	v3Cluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	"google.golang.org/protobuf/testing/protocmp"
 	"gotest.tools/v3/assert"
@@ -44,4 +45,49 @@ func TestNewCluster(t *testing.T) {
 	// Without HTTP2
 	c = NewCluster(name, connectTimeout, endpoints, false, nil, v3Cluster.Cluster_STATIC)
 	assert.Assert(t, c.TypedExtensionProtocolOptions["envoy.extensions.upstreams.http.v3.HttpProtocolOptions"] == nil)
+}
+
+// Both priorities must carry thresholds: leaving either unset silently falls back to
+// Envoy's 1024 default, which is the shared ceiling one noisy revision can exhaust for
+// everyone. Values are asserted as literals, since comparing against the constants would
+// still pass if they were reverted to 1024 — exactly the regression worth catching.
+func TestNewClusterCircuitBreakers(t *testing.T) {
+	tests := []struct {
+		name               string
+		opts               []ClusterOption
+		maxConnections     uint32
+		maxPendingRequests uint32
+	}{{
+		name:               "defaults when unconfigured",
+		maxConnections:     5192,
+		maxPendingRequests: 5192,
+	}, {
+		name:               "overridden from config",
+		opts:               []ClusterOption{WithCircuitBreakers(77, 88)},
+		maxConnections:     77,
+		maxPendingRequests: 88,
+	}}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			c := NewCluster("myTestCluster_12345", 5*time.Second,
+				[]*endpoint.LbEndpoint{NewLBEndpoint("127.0.0.1", 1234)},
+				false, nil, v3Cluster.Cluster_STATIC, test.opts...)
+
+			thresholds := c.GetCircuitBreakers().GetThresholds()
+			assert.Equal(t, len(thresholds), 2)
+
+			byPriority := map[core.RoutingPriority]*v3Cluster.CircuitBreakers_Thresholds{}
+			for _, th := range thresholds {
+				byPriority[th.GetPriority()] = th
+			}
+
+			for _, priority := range []core.RoutingPriority{core.RoutingPriority_DEFAULT, core.RoutingPriority_HIGH} {
+				th, ok := byPriority[priority]
+				assert.Assert(t, ok, "no threshold for priority %v", priority)
+				assert.Equal(t, th.GetMaxConnections().GetValue(), test.maxConnections)
+				assert.Equal(t, th.GetMaxPendingRequests().GetValue(), test.maxPendingRequests)
+			}
+		})
+	}
 }
