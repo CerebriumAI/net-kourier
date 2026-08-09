@@ -62,6 +62,10 @@ const (
 	// maxPendingRequestsKey is the config map key for the per-cluster Envoy
 	// "max_pending_requests" circuit breaker threshold.
 	maxPendingRequestsKey = "max-pending-requests"
+
+	// maxRequestsKey is the config map key for the per-cluster Envoy
+	// "max_requests" circuit breaker threshold.
+	maxRequestsKey = "max-requests"
 )
 
 // Envoy defaults these to 1024, applied per cluster rather than per endpoint, and
@@ -72,6 +76,7 @@ const (
 const (
 	DefaultMaxConnections     = uint32(5192)
 	DefaultMaxPendingRequests = uint32(5192)
+	DefaultMaxRequests        = uint32(5192)
 )
 
 func DefaultConfig() *Kourier {
@@ -87,6 +92,7 @@ func DefaultConfig() *Kourier {
 		DisableEnvoyServerHeader:   false,
 		MaxConnections:             DefaultMaxConnections,
 		MaxPendingRequests:         DefaultMaxPendingRequests,
+		MaxRequests:                DefaultMaxRequests,
 	}
 }
 
@@ -107,6 +113,7 @@ func NewConfigFromMap(configMap map[string]string) (*Kourier, error) {
 		cm.AsBool(disableEnvoyServerHeader, &nc.DisableEnvoyServerHeader),
 		cm.AsUint32(maxConnectionsKey, &nc.MaxConnections),
 		cm.AsUint32(maxPendingRequestsKey, &nc.MaxPendingRequests),
+		cm.AsUint32(maxRequestsKey, &nc.MaxRequests),
 	); err != nil {
 		return nil, err
 	}
@@ -118,6 +125,9 @@ func NewConfigFromMap(configMap map[string]string) (*Kourier, error) {
 	}
 	if nc.MaxPendingRequests == 0 {
 		nc.MaxPendingRequests = DefaultMaxPendingRequests
+	}
+	if nc.MaxRequests == 0 {
+		nc.MaxRequests = DefaultMaxRequests
 	}
 
 	return nc, nil
@@ -204,4 +214,8 @@ type Kourier struct {
 	// MaxPendingRequests is the Envoy "max_pending_requests" circuit breaker threshold
 	// applied to every generated cluster. Requests beyond it are shed with a 503.
 	MaxPendingRequests uint32
+	// MaxRequests is the Envoy "max_requests" circuit breaker threshold applied to every
+	// generated cluster. The HTTP/1.1 connection pool checks it before creating a stream,
+	// so it binds even though Envoy's docs frame it as an HTTP/2 control.
+	MaxRequests uint32
 }

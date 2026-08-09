@@ -225,7 +225,7 @@ func (translator *IngressTranslator) translateIngress(ctx context.Context, ingre
 				var clusterOpts []envoy.ClusterOption
 				if cfg.Kourier != nil {
 					clusterOpts = append(clusterOpts, envoy.WithCircuitBreakers(
-						cfg.Kourier.MaxConnections, cfg.Kourier.MaxPendingRequests))
+						cfg.Kourier.MaxConnections, cfg.Kourier.MaxPendingRequests, cfg.Kourier.MaxRequests))
 				}
 
 				cluster := envoy.NewCluster(splitName, connectTimeout, publicLbEndpoints, http2, transportSocket, typ, clusterOpts...)

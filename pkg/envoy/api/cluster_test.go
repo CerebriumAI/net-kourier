@@ -57,15 +57,18 @@ func TestNewClusterCircuitBreakers(t *testing.T) {
 		opts               []ClusterOption
 		maxConnections     uint32
 		maxPendingRequests uint32
+		maxRequests        uint32
 	}{{
 		name:               "defaults when unconfigured",
 		maxConnections:     5192,
 		maxPendingRequests: 5192,
+		maxRequests:        5192,
 	}, {
 		name:               "overridden from config",
-		opts:               []ClusterOption{WithCircuitBreakers(77, 88)},
+		opts:               []ClusterOption{WithCircuitBreakers(77, 88, 99)},
 		maxConnections:     77,
 		maxPendingRequests: 88,
+		maxRequests:        99,
 	}}
 
 	for _, test := range tests {
@@ -87,6 +90,7 @@ func TestNewClusterCircuitBreakers(t *testing.T) {
 				assert.Assert(t, ok, "no threshold for priority %v", priority)
 				assert.Equal(t, th.GetMaxConnections().GetValue(), test.maxConnections)
 				assert.Equal(t, th.GetMaxPendingRequests().GetValue(), test.maxPendingRequests)
+				assert.Equal(t, th.GetMaxRequests().GetValue(), test.maxRequests)
 			}
 		})
 	}

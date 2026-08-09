@@ -43,6 +43,7 @@ func TestKourierConfig(t *testing.T) {
 		want: &Kourier{
 			MaxConnections:             DefaultMaxConnections,
 			MaxPendingRequests:         DefaultMaxPendingRequests,
+			MaxRequests:                DefaultMaxRequests,
 			EnableServiceAccessLogging: false,
 			IdleTimeout:                0 * time.Second,
 		},
@@ -60,6 +61,7 @@ func TestKourierConfig(t *testing.T) {
 		want: &Kourier{
 			MaxConnections:             DefaultMaxConnections,
 			MaxPendingRequests:         DefaultMaxPendingRequests,
+			MaxRequests:                DefaultMaxRequests,
 			EnableServiceAccessLogging: true,
 			EnableProxyProtocol:        true,
 			ClusterCertSecret:          "my-cert",
@@ -75,6 +77,7 @@ func TestKourierConfig(t *testing.T) {
 		want: &Kourier{
 			MaxConnections:             DefaultMaxConnections,
 			MaxPendingRequests:         DefaultMaxPendingRequests,
+			MaxRequests:                DefaultMaxRequests,
 			EnableServiceAccessLogging: false,
 			EnableProxyProtocol:        true,
 			ClusterCertSecret:          "",
@@ -96,6 +99,7 @@ func TestKourierConfig(t *testing.T) {
 		want: &Kourier{
 			MaxConnections:             DefaultMaxConnections,
 			MaxPendingRequests:         DefaultMaxPendingRequests,
+			MaxRequests:                DefaultMaxRequests,
 			EnableServiceAccessLogging: false,
 			CipherSuites:               sets.New("foo", "bar"),
 		},
@@ -108,6 +112,7 @@ func TestKourierConfig(t *testing.T) {
 		want: &Kourier{
 			MaxConnections:             DefaultMaxConnections,
 			MaxPendingRequests:         DefaultMaxPendingRequests,
+			MaxRequests:                DefaultMaxRequests,
 			EnableServiceAccessLogging: true,
 			EnableProxyProtocol:        false,
 			ClusterCertSecret:          "",
@@ -124,6 +129,7 @@ func TestKourierConfig(t *testing.T) {
 		want: &Kourier{
 			MaxConnections:             DefaultMaxConnections,
 			MaxPendingRequests:         DefaultMaxPendingRequests,
+			MaxRequests:                DefaultMaxRequests,
 			EnableServiceAccessLogging: false,
 			TrustedHopsCount:           3,
 		},
@@ -136,6 +142,7 @@ func TestKourierConfig(t *testing.T) {
 		want: &Kourier{
 			MaxConnections:             DefaultMaxConnections,
 			MaxPendingRequests:         DefaultMaxPendingRequests,
+			MaxRequests:                DefaultMaxRequests,
 			EnableServiceAccessLogging: true,
 			Tracing: Tracing{
 				Enabled:           true,
@@ -152,6 +159,7 @@ func TestKourierConfig(t *testing.T) {
 		want: &Kourier{
 			MaxConnections:             DefaultMaxConnections,
 			MaxPendingRequests:         DefaultMaxPendingRequests,
+			MaxRequests:                DefaultMaxRequests,
 			EnableServiceAccessLogging: true,
 			Tracing: Tracing{
 				Enabled: false,
@@ -165,6 +173,7 @@ func TestKourierConfig(t *testing.T) {
 		want: &Kourier{
 			MaxConnections:             DefaultMaxConnections,
 			MaxPendingRequests:         DefaultMaxPendingRequests,
+			MaxRequests:                DefaultMaxRequests,
 			EnableServiceAccessLogging: true,
 			UseRemoteAddress:           true,
 		},
@@ -176,11 +185,13 @@ func TestKourierConfig(t *testing.T) {
 		want: &Kourier{
 			MaxConnections:             20000,
 			MaxPendingRequests:         30000,
+			MaxRequests:                40000,
 			EnableServiceAccessLogging: true,
 		},
 		data: map[string]string{
 			maxConnectionsKey:     "20000",
 			maxPendingRequestsKey: "30000",
+			maxRequestsKey:        "40000",
 		},
 	}, {
 		// Envoy reads an explicit 0 as "allow nothing", never as "unlimited", so it is
@@ -189,11 +200,13 @@ func TestKourierConfig(t *testing.T) {
 		want: &Kourier{
 			MaxConnections:             DefaultMaxConnections,
 			MaxPendingRequests:         DefaultMaxPendingRequests,
+			MaxRequests:                DefaultMaxRequests,
 			EnableServiceAccessLogging: true,
 		},
 		data: map[string]string{
 			maxConnectionsKey:     "0",
 			maxPendingRequestsKey: "0",
+			maxRequestsKey:        "0",
 		},
 	}, {
 		name:    "not a number for max connections",

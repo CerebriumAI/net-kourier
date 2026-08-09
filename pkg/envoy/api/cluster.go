@@ -34,16 +34,22 @@ import (
 type ClusterOption func(*envoyclusterv3.Cluster)
 
 // WithCircuitBreakers overrides the default per-cluster circuit breaker thresholds.
-func WithCircuitBreakers(maxConnections, maxPendingRequests uint32) ClusterOption {
+func WithCircuitBreakers(maxConnections, maxPendingRequests, maxRequests uint32) ClusterOption {
 	return func(cluster *envoyclusterv3.Cluster) {
-		cluster.CircuitBreakers = circuitBreakers(maxConnections, maxPendingRequests)
+		cluster.CircuitBreakers = circuitBreakers(maxConnections, maxPendingRequests, maxRequests)
 	}
 }
 
 // circuitBreakers builds thresholds for every routing priority. Envoy tracks each
 // priority separately and routing priority is chosen per route, so omitting one leaves
 // that priority on Envoy's 1024 default.
-func circuitBreakers(maxConnections, maxPendingRequests uint32) *envoyclusterv3.CircuitBreakers {
+//
+// max_requests must be raised alongside max_connections. Envoy's docs describe it as
+// applicable to HTTP/2, but the HTTP/1.1 connection pool also checks it before creating
+// a stream and sheds the request as an upstream_rq_pending_overflow when it is exceeded.
+// Raising only max_connections just relocates the ceiling: measured on a dev gateway,
+// 5192/5192/1024 moved 95k cx_overflow to 51k rq_pending_overflow at the same load.
+func circuitBreakers(maxConnections, maxPendingRequests, maxRequests uint32) *envoyclusterv3.CircuitBreakers {
 	priorities := []envoycorev3.RoutingPriority{
 		envoycorev3.RoutingPriority_DEFAULT,
 		envoycorev3.RoutingPriority_HIGH,
@@ -55,6 +61,7 @@ func circuitBreakers(maxConnections, maxPendingRequests uint32) *envoyclusterv3.
 			Priority:           priority,
 			MaxConnections:     wrapperspb.UInt32(maxConnections),
 			MaxPendingRequests: wrapperspb.UInt32(maxPendingRequests),
+			MaxRequests:        wrapperspb.UInt32(maxRequests),
 		})
 	}
 
@@ -86,6 +93,7 @@ func NewCluster(
 		CircuitBreakers: circuitBreakers(
 			pkgconfig.DefaultMaxConnections,
 			pkgconfig.DefaultMaxPendingRequests,
+			pkgconfig.DefaultMaxRequests,
 		),
 	}
 
