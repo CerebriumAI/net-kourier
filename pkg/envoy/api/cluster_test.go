@@ -60,9 +60,9 @@ func TestNewClusterCircuitBreakers(t *testing.T) {
 		maxRequests        uint32
 	}{{
 		name:               "defaults when unconfigured",
-		maxConnections:     5192,
-		maxPendingRequests: 5192,
-		maxRequests:        5192,
+		maxConnections:     8192,
+		maxPendingRequests: 8192,
+		maxRequests:        8192,
 	}, {
 		name:               "overridden from config",
 		opts:               []ClusterOption{WithCircuitBreakers(77, 88, 99)},

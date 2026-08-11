@@ -48,7 +48,8 @@ func WithCircuitBreakers(maxConnections, maxPendingRequests, maxRequests uint32)
 // applicable to HTTP/2, but the HTTP/1.1 connection pool also checks it before creating
 // a stream and sheds the request as an upstream_rq_pending_overflow when it is exceeded.
 // Raising only max_connections just relocates the ceiling: measured on a dev gateway,
-// 5192/5192/1024 moved 95k cx_overflow to 51k rq_pending_overflow at the same load.
+// raising connections alone moved 95k cx_overflow to 51k rq_pending_overflow at the
+// same load, and 85% of requests were shed with a 503.
 func circuitBreakers(maxConnections, maxPendingRequests, maxRequests uint32) *envoyclusterv3.CircuitBreakers {
 	priorities := []envoycorev3.RoutingPriority{
 		envoycorev3.RoutingPriority_DEFAULT,

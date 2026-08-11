@@ -74,9 +74,9 @@ const (
 // traffic for every revision behind that cluster with a 503 (UO). Adding replicas does
 // not help — the threshold spans all endpoints in the cluster.
 const (
-	DefaultMaxConnections     = uint32(5192)
-	DefaultMaxPendingRequests = uint32(5192)
-	DefaultMaxRequests        = uint32(5192)
+	DefaultMaxConnections     = uint32(8192)
+	DefaultMaxPendingRequests = uint32(8192)
+	DefaultMaxRequests        = uint32(8192)
 )
 
 func DefaultConfig() *Kourier {

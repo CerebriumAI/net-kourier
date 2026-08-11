@@ -98,12 +98,12 @@ data:
     # max-requests must be raised alongside max-connections. Envoy documents it as an
     # HTTP/2 control, but the HTTP/1.1 connection pool checks it before creating a
     # stream, so leaving it at 1024 only relocates the ceiling: measured on a dev
-    # gateway at identical load, 5192/5192/1024 returned 85% 503s where 5192/5192/5192
-    # returned 100% 200s. Note circuit_breakers.*.rq_open stays 0 while this sheds
+    # gateway at identical load, raising connections alone returned 85% 503s where
+    # raising all three returned 100% 200s. Note circuit_breakers.*.rq_open stays 0 while this sheds
     # traffic, so it is not a usable alert signal -- watch rq_pending_overflow.
     #
     # A value of "0" is treated as unset and falls back to the default below, since
     # Envoy reads an explicit 0 as "allow nothing" rather than "unlimited".
-    max-connections: "5192"
-    max-pending-requests: "5192"
-    max-requests: "5192"
+    max-connections: "8192"
+    max-pending-requests: "8192"
+    max-requests: "8192"
