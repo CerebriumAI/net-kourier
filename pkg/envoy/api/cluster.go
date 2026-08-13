@@ -63,6 +63,10 @@ func circuitBreakers(maxConnections, maxPendingRequests, maxRequests uint32) *en
 			MaxConnections:     wrapperspb.UInt32(maxConnections),
 			MaxPendingRequests: wrapperspb.UInt32(maxPendingRequests),
 			MaxRequests:        wrapperspb.UInt32(maxRequests),
+			// Publishes circuit_breakers.<priority>.remaining_{cx,pending,rq} gauges, so
+			// headroom can be derived from what Envoy is actually enforcing instead of
+			// a threshold hardcoded into dashboards and alerts.
+			TrackRemaining: true,
 		})
 	}
 

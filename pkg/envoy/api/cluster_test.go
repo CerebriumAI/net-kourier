@@ -91,6 +91,7 @@ func TestNewClusterCircuitBreakers(t *testing.T) {
 				assert.Equal(t, th.GetMaxConnections().GetValue(), test.maxConnections)
 				assert.Equal(t, th.GetMaxPendingRequests().GetValue(), test.maxPendingRequests)
 				assert.Equal(t, th.GetMaxRequests().GetValue(), test.maxRequests)
+				assert.Equal(t, th.GetTrackRemaining(), true)
 			}
 		})
 	}
