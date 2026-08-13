@@ -83,3 +83,27 @@ data:
 
     # Disable the Envoy server header injection in the response when response has no such header.
     disable-envoy-server-header: "false"
+
+    # Envoy circuit breaker thresholds applied to every generated cluster. Both are
+    # counted across all of a cluster's endpoints rather than per endpoint, so adding
+    # replicas to a backing service does not raise them.
+    #
+    # Envoy's own default for both is 1024. Once a cluster reaches max-connections its
+    # requests queue as pending, and once pending reaches max-pending-requests Envoy
+    # sheds further requests with a 503 (response flag UO) -- for every Knative service
+    # sharing that cluster, not only the one that filled the queue. Raise these if a
+    # single slow-to-become-ready revision can hold enough connections open to exhaust
+    # the budget for everything behind the same cluster.
+    #
+    # max-requests must be raised alongside max-connections. Envoy documents it as an
+    # HTTP/2 control, but the HTTP/1.1 connection pool checks it before creating a
+    # stream, so leaving it at 1024 only relocates the ceiling: measured on a dev
+    # gateway at identical load, raising connections alone returned 85% 503s where
+    # raising all three returned 100% 200s. Note circuit_breakers.*.rq_open stays 0 while this sheds
+    # traffic, so it is not a usable alert signal -- watch rq_pending_overflow.
+    #
+    # A value of "0" is treated as unset and falls back to the default below, since
+    # Envoy reads an explicit 0 as "allow nothing" rather than "unlimited".
+    max-connections: "8192"
+    max-pending-requests: "8192"
+    max-requests: "8192"

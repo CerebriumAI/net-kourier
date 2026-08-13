@@ -39,6 +39,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
+	pkgconfig "knative.dev/net-kourier/pkg/config"
 	envoy "knative.dev/net-kourier/pkg/envoy/api"
 	"knative.dev/net-kourier/pkg/reconciler/ingress/config"
 	"knative.dev/networking/pkg/apis/networking"
@@ -1711,6 +1712,70 @@ func TestIngressTranslatorDomainMappingDisableHTTP2(t *testing.T) {
 			protocmp.Transform(),
 		)
 	})
+}
+
+// Proves config-kourier reaches the generated clusters. The unit test on NewCluster only
+// covers the builder; this covers the wiring, including the nil-Kourier path that every
+// other test in this file exercises implicitly.
+func TestIngressTranslatorCircuitBreakers(t *testing.T) {
+	tests := []struct {
+		name               string
+		kourier            *pkgconfig.Kourier
+		maxConnections     uint32
+		maxPendingRequests uint32
+	}{{
+		name:               "no kourier config falls back to defaults",
+		kourier:            nil,
+		maxConnections:     pkgconfig.DefaultMaxConnections,
+		maxPendingRequests: pkgconfig.DefaultMaxPendingRequests,
+	}, {
+		name:               "thresholds come from config-kourier",
+		kourier:            &pkgconfig.Kourier{MaxConnections: 4242, MaxPendingRequests: 2424},
+		maxConnections:     4242,
+		maxPendingRequests: 2424,
+	}}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := defaultConfig.DeepCopy()
+			cfg.Kourier = test.kourier
+			ctx := (&testConfigStore{config: cfg}).ToContext(context.Background())
+
+			kubeclient := fake.NewSimpleClientset(
+				svc("servicens", "servicename"),
+				eps("servicens", "servicename"),
+			)
+
+			translator := NewIngressTranslator(
+				func(ns, name string) (*corev1.Secret, error) {
+					return kubeclient.CoreV1().Secrets(ns).Get(ctx, name, metav1.GetOptions{})
+				},
+				func(_ string) ([]*corev1.ConfigMap, error) {
+					return getConfigmaps(ctx, kubeclient)
+				},
+				func(ns, name string) (*corev1.Endpoints, error) {
+					return kubeclient.CoreV1().Endpoints(ns).Get(ctx, name, metav1.GetOptions{})
+				},
+				func(ns, name string) (*corev1.Service, error) {
+					return kubeclient.CoreV1().Services(ns).Get(ctx, name, metav1.GetOptions{})
+				},
+				&pkgtest.FakeTracker{},
+			)
+
+			got, err := translator.translateIngress(ctx, ing("simplens", "simplename"), false)
+			assert.NilError(t, err)
+			assert.Assert(t, len(got.clusters) > 0)
+
+			for _, cluster := range got.clusters {
+				thresholds := cluster.GetCircuitBreakers().GetThresholds()
+				assert.Equal(t, len(thresholds), 2)
+				for _, th := range thresholds {
+					assert.Equal(t, th.GetMaxConnections().GetValue(), test.maxConnections)
+					assert.Equal(t, th.GetMaxPendingRequests().GetValue(), test.maxPendingRequests)
+				}
+			}
+		})
+	}
 }
 
 func ing(ns, name string, opts ...func(*v1alpha1.Ingress)) *v1alpha1.Ingress {

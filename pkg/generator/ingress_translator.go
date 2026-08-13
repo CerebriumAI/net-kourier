@@ -220,7 +220,15 @@ func (translator *IngressTranslator) translateIngress(ctx context.Context, ingre
 						return nil, err
 					}
 				}
-				cluster := envoy.NewCluster(splitName, connectTimeout, publicLbEndpoints, http2, transportSocket, typ)
+				// cfg.Kourier is nil when no config-kourier ConfigMap is loaded; leave
+				// NewCluster on its defaults rather than dereferencing it.
+				var clusterOpts []envoy.ClusterOption
+				if cfg.Kourier != nil {
+					clusterOpts = append(clusterOpts, envoy.WithCircuitBreakers(
+						cfg.Kourier.MaxConnections, cfg.Kourier.MaxPendingRequests, cfg.Kourier.MaxRequests))
+				}
+
+				cluster := envoy.NewCluster(splitName, connectTimeout, publicLbEndpoints, http2, transportSocket, typ, clusterOpts...)
 				logger.Debugf("adding cluster: %v", cluster)
 				clusters = append(clusters, cluster)
 
